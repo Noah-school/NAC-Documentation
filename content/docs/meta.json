@@ -1,0 +1,4 @@
+{
+  "title": "POC Guides",
+  "pages": ["index", "network", "omada-tp-link-install", "packetfence-install"]
+}
