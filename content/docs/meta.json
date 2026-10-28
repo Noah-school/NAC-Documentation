@@ -1,4 +1,4 @@
 {
   "title": "POC Guides",
-  "pages": ["index", "omada-tp-link-install", "packetfence-install", "radius-connection", "EntraID-Configuration", "EntraID-Connection"]
+  "pages": ["index", "omada-tp-link-install", "packetfence-install", "radius-connection", "EntraID-Configuration", "EntraID-Connection", "Devices"]
 }
