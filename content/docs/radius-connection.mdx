@@ -1,0 +1,89 @@
+---
+title: RADIUS Connection
+description: Point the Omada network at PacketFence and register the Omada devices as RADIUS clients.
+---
+
+## Overview
+
+RADIUS needs to be configured on both sides:
+
+- **Omada** gets a RADIUS profile that sends authentication and accounting requests to PacketFence.
+- **PacketFence** gets a switch entry for the Omada device, so it accepts requests from that IP and knows the shared secret.
+
+The **shared secret** must be exactly the same on both sides. Generate one long random string (32+ characters) and store it in your password manager before you start.
+
+| Value           | Used in this lab                    |
+| --------------- | ----------------------------------- |
+| PacketFence IP  | `100.88.124.105` (over the tunnel)  |
+| Omada device IP | `100.88.41.96`                      |
+| Auth port       | `1812`                              |
+| Accounting port | `1813`                              |
+| CoA port        | `3799`                              |
+
+---
+
+## Omada: create a RADIUS profile
+
+In the Omada controller open the site's _RADIUS Profile_ page (under the profile settings) and click **Create New RADIUS Profile**.
+
+**Step 1, General:**
+- **Name:** `PacketFence`.
+- **VLAN Assignment:** enable it. PacketFence returns the VLAN (registration, isolation or production) in the RADIUS reply, and the AP needs this option to apply it.
+- **Require Message-Authenticator:** enable it. This protects against the BlastRADIUS attack. 802.1X (EAP) always includes the attribute, so it only breaks plain PAP/CHAP, which we don't use.
+
+**Step 2, Authentication Server:**
+- **IP/URL:** the PacketFence IP.
+- **RadSec:** leave off. The traffic already goes through the VPN tunnel.
+- **Port:** `1812`.
+- **Password:** the shared secret.
+
+![RADIUS-1792622679010](./images/RADIUS-1792622679010.webp)
+
+---
+
+**Step 3, Accounting Server:**
+- Enable **RADIUS Accounting**, so PacketFence knows when a device connects and disconnects.
+- **IP/URL:** the PacketFence IP, **port** `1813`, same shared secret.
+- Leave **Interim Update** off and the **timeout** at 3 seconds.
+
+**Step 4, CoA:**
+- Leave **RADIUS Proxy** off.
+- Enable **RADIUS CoA** and set the **CoA password** to the shared secret. Change of Authorization lets PacketFence kick a client off or move it to another VLAN after it registers or gets a violation, without the user having to reconnect manually.
+
+![RADIUS-1792622844682](./images/RADIUS-1792622844682.webp)
+
+Save the profile, then select it in the WLAN (_WPA-Enterprise_) and in the switch port 802.1X settings.
+
+---
+
+## PacketFence: add the switch
+
+In the PacketFence admin UI go to _Configuration > Policies and Access Control > Network Devices > Switches_ and click **New Switch > default**.
+
+**Step 1, Definition tab:**
+- **IP Address:** the Omada device IP. PacketFence only answers RADIUS requests from known IPs.
+- **Type:** change it from _Standard Switch (template based)_ to `Generic`. There is no dedicated Omada module, and Generic works with standard RADIUS attributes.
+- **Mode:** `Production`.
+- **Deauthentication Method:** `RADIUS`.
+- Leave the rest on the defaults.
+
+![RADIUS-1792622991946](./images/RADIUS-1792622991946.webp)
+
+---
+
+**Step 2, RADIUS tab:**
+- **Secret Passphrase:** the same shared secret as in the Omada profile.
+- **Use CoA:** Yes (default).
+- **CoA Port:** `3799`, matching the CoA setting in Omada.
+
+Click **Create**.
+
+![RADIUS-1792622983475](./images/RADIUS-1792622983475.webp)
+
+---
+
+## Optional: USB Wi-Fi adapter in Proxmox
+
+To test wireless 802.1X from a VM, pass a USB Wi-Fi adapter through to it. In Proxmox, select the VM and go to _Hardware > Add > USB Device_, choose **Use USB Vendor/Device ID** and pick the adapter (here `802.11ac WLAN Adapter (2357:011e)`). Using the vendor/device ID instead of the port means it keeps working if you plug it into a different USB port.
+
+![RADIUS-1792623348572](./images/RADIUS-1792623348572.webp)
